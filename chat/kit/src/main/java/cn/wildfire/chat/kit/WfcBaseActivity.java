@@ -1,15 +1,18 @@
 package cn.wildfire.chat.kit;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.TextView;
 
 import androidx.annotation.LayoutRes;
 import androidx.annotation.MenuRes;
@@ -17,7 +20,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.drawable.DrawableCompat;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -34,16 +36,41 @@ public abstract class WfcBaseActivity extends AppCompatActivity {
         beforeViews();
         setContentView(contentLayout());
         ButterKnife.bind(this);
-        if (toolbar.getOverflowIcon() != null) {
-            DrawableCompat.setTint(toolbar.getOverflowIcon(), getResources().getColor(R.color.gray15));
-        }
         setSupportActionBar(toolbar);
-        getSupportActionBar().setHomeAsUpIndicator(R.mipmap.ic_back);
+        SharedPreferences sp = getSharedPreferences("config", Context.MODE_PRIVATE);
+        if (sp.getBoolean("darkTheme", true)) {
+            // dark
+            toolbar.getContext().setTheme(R.style.AppTheme_DarkAppbar);
+            customToolbarAndStatusBarBackgroundColor(true);
+        } else {
+            // light
+            toolbar.getContext().setTheme(R.style.AppTheme_LightAppbar);
+            customToolbarAndStatusBarBackgroundColor(false);
+        }
+        afterViews();
+    }
+
+    /**
+     * @param darkTheme 和toolbar.xml里面的 app:theme="@style/AppTheme.DarkAppbar" 相关
+     */
+    private void customToolbarAndStatusBarBackgroundColor(boolean darkTheme) {
+        int toolbarBackgroundColorResId = darkTheme ? R.color.colorPrimary : R.color.gray5;
+        Drawable drawable = getResources().getDrawable(R.mipmap.ic_back);
+        if (darkTheme) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                drawable.setTint(Color.WHITE);
+            }
+            toolbar.setTitleTextColor(Color.WHITE);
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                drawable.setTintList(null);
+            }
+        }
+        getSupportActionBar().setHomeAsUpIndicator(drawable);
         if (showHomeMenuItem()) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
-        setTitleBackgroundResource(R.color.gray5);
-        afterViews();
+        setTitleBackgroundResource(toolbarBackgroundColorResId, darkTheme);
     }
 
     /**
@@ -51,15 +78,17 @@ public abstract class WfcBaseActivity extends AppCompatActivity {
      *
      * @param resId 颜色资源id
      */
-    protected void setTitleBackgroundResource(int resId) {
+    protected void setTitleBackgroundResource(int resId, boolean dark) {
         toolbar.setBackgroundResource(resId);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(ContextCompat.getColor(this, resId));
         }
+        setStatusBarTheme(this, dark);
     }
 
-    protected void setTitleTextColor(int color) {
-        toolbar.setTitleTextColor(color);
+    protected boolean isDarkTheme() {
+        SharedPreferences sp = getSharedPreferences("config", MODE_PRIVATE);
+        return sp.getBoolean("darkTheme", true);
     }
 
     @Override
@@ -153,5 +182,17 @@ public abstract class WfcBaseActivity extends AppCompatActivity {
             }
         }
         return granted;
+    }
+
+    /**
+     * Changes the System Bar Theme.
+     */
+    public static void setStatusBarTheme(final Activity pActivity, final boolean pIsDark) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Fetch the current flags.
+            final int lFlags = pActivity.getWindow().getDecorView().getSystemUiVisibility();
+            // Update the SystemUiVisibility dependening on whether we want a Light or Dark theme.
+            pActivity.getWindow().getDecorView().setSystemUiVisibility(pIsDark ? (lFlags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR) : (lFlags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR));
+        }
     }
 }

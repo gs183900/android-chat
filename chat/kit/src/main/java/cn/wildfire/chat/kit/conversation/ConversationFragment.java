@@ -20,6 +20,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
@@ -161,7 +162,7 @@ public class ConversationFragment extends Fragment implements
                 resetConversationTitle();
             }
 
-            if (uiMessage.message.direction == MessageDirection.Receive) {
+            if (getLifecycle().getCurrentState() == Lifecycle.State.RESUMED && uiMessage.message.direction == MessageDirection.Receive) {
                 conversationViewModel.clearUnreadStatus(conversation);
             }
         }
@@ -301,6 +302,14 @@ public class ConversationFragment extends Fragment implements
         return view;
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (conversationViewModel != null && conversation != null) {
+            conversationViewModel.clearUnreadStatus(conversation);
+        }
+    }
+
     public void setupConversation(Conversation conversation, String title, long focusMessageId, String target) {
         this.conversation = conversation;
         this.conversationTitle = title;
@@ -395,36 +404,38 @@ public class ConversationFragment extends Fragment implements
 
         inputPanel.setupConversation(conversation);
 
-        MutableLiveData<List<UiMessage>> messages;
-        if (initialFocusedMessageId != -1) {
-            shouldContinueLoadNewMessage = true;
-            messages = conversationViewModel.loadAroundMessages(conversation, channelPrivateChatUser, initialFocusedMessageId, MESSAGE_LOAD_AROUND);
-        } else {
-            messages = conversationViewModel.getMessages(conversation, channelPrivateChatUser);
-        }
+        if (conversation.type != Conversation.ConversationType.ChatRoom) {
 
-        // load message
-        swipeRefreshLayout.setRefreshing(true);
-        messages.observe(this, uiMessages -> {
-            swipeRefreshLayout.setRefreshing(false);
-            adapter.setMessages(uiMessages);
-            adapter.notifyDataSetChanged();
-
-            if (adapter.getItemCount() > 1) {
-                int initialMessagePosition;
-                if (initialFocusedMessageId != -1) {
-                    initialMessagePosition = adapter.getMessagePosition(initialFocusedMessageId);
-                    if (initialMessagePosition != -1) {
-                        recyclerView.scrollToPosition(initialMessagePosition);
-                        adapter.highlightFocusMessage(initialMessagePosition);
-                    }
-                } else {
-                    moveToBottom = true;
-                    recyclerView.scrollToPosition(adapter.getItemCount() - 1);
-                }
+            MutableLiveData<List<UiMessage>> messages;
+            if (initialFocusedMessageId != -1) {
+                shouldContinueLoadNewMessage = true;
+                messages = conversationViewModel.loadAroundMessages(conversation, channelPrivateChatUser, initialFocusedMessageId, MESSAGE_LOAD_AROUND);
+            } else {
+                messages = conversationViewModel.getMessages(conversation, channelPrivateChatUser);
             }
-        });
-        if (conversation.type == Conversation.ConversationType.ChatRoom) {
+
+            // load message
+            swipeRefreshLayout.setRefreshing(true);
+            messages.observe(this, uiMessages -> {
+                swipeRefreshLayout.setRefreshing(false);
+                adapter.setMessages(uiMessages);
+                adapter.notifyDataSetChanged();
+
+                if (adapter.getItemCount() > 1) {
+                    int initialMessagePosition;
+                    if (initialFocusedMessageId != -1) {
+                        initialMessagePosition = adapter.getMessagePosition(initialFocusedMessageId);
+                        if (initialMessagePosition != -1) {
+                            recyclerView.scrollToPosition(initialMessagePosition);
+                            adapter.highlightFocusMessage(initialMessagePosition);
+                        }
+                    } else {
+                        moveToBottom = true;
+                        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+                    }
+                }
+            });
+        } else {
             joinChatRoom();
         }
 
@@ -462,8 +473,9 @@ public class ConversationFragment extends Fragment implements
                         } else {
                             content.tip = String.format(welcome, "<" + userId + ">");
                         }
-                        messageViewModel.sendMessage(conversation, content);
-                        loadMoreOldMessages();
+                        handler.postDelayed(() -> {
+                            messageViewModel.sendMessage(conversation, content);
+                        }, 1000);
                         setChatRoomConversationTitle();
 
                     } else {
@@ -539,9 +551,10 @@ public class ConversationFragment extends Fragment implements
 
     @OnTouch({R.id.contentLayout, R.id.msgRecyclerView})
     boolean onTouch(View view, MotionEvent event) {
-        if (event.getAction() == MotionEvent.ACTION_DOWN && inputPanel.extension.canHideOnScroll()) {
-            inputPanel.collapse();
-        }
+//        if (event.getAction() == MotionEvent.ACTION_DOWN && inputPanel.extension.canHideOnScroll()) {
+//            inputPanel.collapse();
+//        }
+        inputPanel.closeConversationInputPanel();
         return false;
     }
 
@@ -655,7 +668,7 @@ public class ConversationFragment extends Fragment implements
         boolean consumed = true;
         if (rootLinearLayout.getCurrentInput() != null) {
             rootLinearLayout.hideAttachedInput(true);
-            inputPanel.collapse();
+            inputPanel.closeConversationInputPanel();
         } else if (multiMessageActionContainerLinearLayout.getVisibility() == View.VISIBLE) {
             toggleConversationMode();
         } else {
@@ -778,6 +791,10 @@ public class ConversationFragment extends Fragment implements
         adapter.setMode(ConversationMessageAdapter.MODE_NORMAL);
         adapter.clearMessageCheckStatus();
         adapter.notifyDataSetChanged();
+    }
+
+    public void setInputText(String text) {
+        inputPanel.setInputText(text);
     }
 
     private void setupMultiMessageAction() {

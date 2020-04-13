@@ -25,15 +25,17 @@ public class UserInfoActivity extends WfcBaseActivity {
 
     @Override
     protected void afterViews() {
+        if (!isDarkTheme()) {
+            setTitleBackgroundResource(R.color.white, false);
+        }
         userInfo = getIntent().getParcelableExtra("userInfo");
         if (userInfo == null) {
             finish();
         } else {
             getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.containerFrameLayout, UserInfoFragment.newInstance(userInfo))
-                    .commit();
+                .replace(R.id.containerFrameLayout, UserInfoFragment.newInstance(userInfo))
+                .commit();
         }
-        setTitleBackgroundResource(R.color.white);
     }
 
     @Override
@@ -104,14 +106,14 @@ public class UserInfoActivity extends WfcBaseActivity {
 
         if (item.getItemId() == R.id.delete) {
             contactViewModel.deleteFriend(userInfo.uid).observe(
-                    this, booleanOperateResult -> {
-                        if (booleanOperateResult.isSuccess()) {
-                            Intent intent = new Intent(UserInfoActivity.this, MainActivity.class);
-                            startActivity(intent);
-                        } else {
-                            Toast.makeText(this, "delete friend error " + booleanOperateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
-                        }
+                this, booleanOperateResult -> {
+                    if (booleanOperateResult.isSuccess()) {
+                        Intent intent = new Intent(UserInfoActivity.this, MainActivity.class);
+                        startActivity(intent);
+                    } else {
+                        Toast.makeText(this, "delete friend error " + booleanOperateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
                     }
+                }
             );
             return true;
         } else if (item.getItemId() == R.id.addFriend) {
@@ -121,24 +123,24 @@ public class UserInfoActivity extends WfcBaseActivity {
             return true;
         } else if (item.getItemId() == R.id.addBlacklist) {
             contactViewModel.setBlacklist(userInfo.uid, true).observe(
-                    this, booleanOperateResult -> {
-                        if (booleanOperateResult.isSuccess()) {
-                            Toast.makeText(this, "设置成功", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(this, "add blacklist error " + booleanOperateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
-                        }
+                this, booleanOperateResult -> {
+                    if (booleanOperateResult.isSuccess()) {
+                        Toast.makeText(this, "设置成功", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "add blacklist error " + booleanOperateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
                     }
+                }
             );
             return true;
         } else if (item.getItemId() == R.id.removeBlacklist) {
             contactViewModel.setBlacklist(userInfo.uid, false).observe(
-                    this, booleanOperateResult -> {
-                        if (booleanOperateResult.isSuccess()) {
-                            Toast.makeText(this, "设置成功", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(this, "remove blacklist error " + booleanOperateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
-                        }
+                this, booleanOperateResult -> {
+                    if (booleanOperateResult.isSuccess()) {
+                        Toast.makeText(this, "设置成功", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "remove blacklist error " + booleanOperateResult.getErrorCode(), Toast.LENGTH_SHORT).show();
                     }
+                }
             );
             return true;
         } else if (item.getItemId() == R.id.setAlias) {
